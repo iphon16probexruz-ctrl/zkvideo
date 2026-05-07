@@ -3,27 +3,27 @@ import logging
 import os
 import shutil
 
-from config import FFMPEG_PATH, LOGO_PATH, CRF, PRESET, VX, VY
+from config import LOGO_PATH, CRF, PRESET, VX, VY
 
 logger = logging.getLogger(__name__)
 
 
 async def apply_watermark(input_path: str, output_path: str) -> None:
-    """
-    Videoga DVD-style bouncing logo watermark qo'yadi.
-    Async ishlaydi — botni blokllamaydi.
-    """
 
-    # ─── Tekshiruvlar ───────────────────────────────────────
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input video topilmadi: {input_path}")
 
     if not os.path.exists(LOGO_PATH):
         raise FileNotFoundError(f"Logo topilmadi: {LOGO_PATH}")
 
-    ffmpeg = shutil.which(FFMPEG_PATH) or FFMPEG_PATH
+    # Railway/Linux ffmpeg detect
+    ffmpeg = shutil.which("ffmpeg")
 
-    # ─── DVD Bounce Filter ──────────────────────────────────
+    if not ffmpeg:
+        raise RuntimeError("FFmpeg serverda topilmadi!")
+
+    logger.info(f"FFmpeg topildi: {ffmpeg}")
+
     filter_expr = (
         f"[1:v]format=rgba,"
         f"scale='min(iw,ih)*1.2':-1[logo];"
@@ -51,26 +51,17 @@ async def apply_watermark(input_path: str, output_path: str) -> None:
 
     logger.info(f"FFmpeg ishga tushdi: {os.path.basename(input_path)}")
 
-    # ─── Async subprocess ───────────────────────────────────
-    try:
-        process = await asyncio.create_subprocess_exec(
-            *command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+    process = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
 
-        _, stderr = await process.communicate()
+    _, stderr = await process.communicate()
 
-        if process.returncode != 0:
-            error_msg = stderr.decode(errors="replace").strip()
-            logger.error(f"FFmpeg xatosi: {error_msg}")
-            raise RuntimeError(f"FFmpeg xatosi: {error_msg}")
+    if process.returncode != 0:
+        error_msg = stderr.decode(errors="replace").strip()
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
 
-        logger.info(f"✅ Watermark qo'yildi: {os.path.basename(output_path)}")
-
-    except FileNotFoundError:
-        raise RuntimeError(
-            "FFmpeg topilmadi! "
-            "Railway: nixpacks.toml ichida ffmpeg bor. "
-            "Local: ffmpeg o'rnating."
-        )
+    logger.info(f"✅ Tayyor: {os.path.basename(output_path)}")
