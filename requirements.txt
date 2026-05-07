@@ -1,5 +1,5 @@
 # ─── Asosiy kutubxona ────────────────────────────────────────
-aiogram==3.7.0
+aiogram>=3.7.0
 
 # ─── aiogram bog'liqliklari ───────────────────────────────────
 aiohttp==3.9.5
